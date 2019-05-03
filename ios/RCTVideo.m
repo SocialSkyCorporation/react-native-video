@@ -25,6 +25,7 @@ static int const RCTVideoUnset = -1;
   BOOL _playerLayerObserverSet;
   AVPlayerViewController *_playerViewController;
   NSURL *_videoURL;
+  BOOL isVideoRecord;
 
   /* Required to publish events */
   RCTEventDispatcher *_eventDispatcher;
@@ -99,9 +100,44 @@ static int const RCTVideoUnset = -1;
                                              selector:@selector(audioRouteChanged:)
                                                  name:AVAudioSessionRouteChangeNotification
                                                object:nil];
+
+    if (@available(iOS 11.0, *)) {
+      [[NSNotificationCenter defaultCenter] addObserver:self
+                          selector:@selector(handleScreenCaptureChange)
+                            name:UIScreenCapturedDidChangeNotification object:nil];
+    }
   }
 
   return self;
+}
+
+-(void)handleScreenCaptureChange {
+	NSLog(@"handleScreenCaptureChange");
+	
+	UIScreen *aScreen;
+	BOOL isMainScreenMirrored = NO;
+	NSArray *screens = [UIScreen screens];
+	
+	for (aScreen in screens) {
+		if ([aScreen respondsToSelector:@selector(mirroredScreen)] && [aScreen mirroredScreen] == [UIScreen mainScreen]) {
+			// The main screen is being mirrored.
+			isMainScreenMirrored = YES;
+		}
+	}
+	
+	if (@available(iOS 11.0, *)) {
+		BOOL isCaptured = [[UIScreen mainScreen] isCaptured];
+		NSLog(@"isCaptured = %@", isCaptured?@"YES":@"NO");
+		
+		if (isCaptured && !isMainScreenMirrored) {
+			_playerViewController.view.hidden = YES;
+			self.isVideoRecord = YES;
+		}
+		else {
+			_playerViewController.view.hidden = NO;
+			self.isVideoRecord = NO;
+		}
+	}
 }
 
 - (AVPlayerViewController*)createPlayerViewController:(AVPlayer*)player withPlayerItem:(AVPlayerItem*)playerItem {
